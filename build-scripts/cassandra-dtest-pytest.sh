@@ -18,6 +18,7 @@ export CCM_HEAP_NEWSIZE="200M"
 export CCM_CONFIG_DIR=${WORKSPACE}/.ccm
 export NUM_TOKENS="32"
 export CASSANDRA_DIR=${WORKSPACE}
+export TURN_OFF_PYTHON_WARNINGS=true
 #Have Cassandra skip all fsyncs to improve test performance and reliability
 export CASSANDRA_SKIP_SYNC=true
 
@@ -63,14 +64,19 @@ pip3 freeze
 cd cassandra-dtest/
 rm -r upgrade_tests/ # TEMP: remove upgrade_tests - we have no dual JDK installation
 set +e # disable immediate exit from this point
+
+if [ "${TURN_OFF_PYTHON_WARNINGS}" = "true" ]; then
+    $PYTHON_WARNINGS_FLAG="--pythonwarnings=ignore::yaml.YAMLLoadWarning"
+fi
+
 if [ "${DTEST_TARGET}" = "dtest" ]; then
-    pytest -vv --log-level="INFO" --use-vnodes --num-tokens=32 --junit-xml=nosetests.xml -s --cassandra-dir=$CASSANDRA_DIR --skip-resource-intensive-tests 2>&1 | tee -a ${WORKSPACE}/test_stdout.txt
+    pytest ${PYTHON_WARNINGS_FLAG} -vv --log-level="INFO" --use-vnodes --num-tokens=32 --junit-xml=nosetests.xml -s --cassandra-dir=$CASSANDRA_DIR --skip-resource-intensive-tests 2>&1 | tee -a ${WORKSPACE}/test_stdout.txt
 elif [ "${DTEST_TARGET}" = "dtest-novnode" ]; then
-    pytest -vv --log-level="INFO" --junit-xml=nosetests.xml -s --cassandra-dir=$CASSANDRA_DIR --skip-resource-intensive-tests 2>&1 | tee -a ${WORKSPACE}/test_stdout.txt
+    pytest ${PYTHON_WARNINGS_FLAG} -vv --log-level="INFO" --junit-xml=nosetests.xml -s --cassandra-dir=$CASSANDRA_DIR --skip-resource-intensive-tests 2>&1 | tee -a ${WORKSPACE}/test_stdout.txt
 elif [ "${DTEST_TARGET}" = "dtest-offheap" ]; then
-    pytest -vv --log-level="INFO" --use-vnodes --num-tokens=32 --use-off-heap-memtables --junit-xml=nosetests.xml -s --cassandra-dir=$CASSANDRA_DIR --skip-resource-intensive-tests 2>&1 | tee -a ${WORKSPACE}/test_stdout.txt
+    pytest ${PYTHON_WARNINGS_FLAG} -vv --log-level="INFO" --use-vnodes --num-tokens=32 --use-off-heap-memtables --junit-xml=nosetests.xml -s --cassandra-dir=$CASSANDRA_DIR --skip-resource-intensive-tests 2>&1 | tee -a ${WORKSPACE}/test_stdout.txt
 elif [ "${DTEST_TARGET}" = "dtest-large" ]; then
-    pytest -vv --log-level="INFO" --use-vnodes --num-tokens=32 --junit-xml=nosetests.xml -s --cassandra-dir=$CASSANDRA_DIR --force-resource-intensive-tests 2>&1 | tee -a ${WORKSPACE}/test_stdout.txt
+    pytest ${PYTHON_WARNINGS_FLAG} -vv --log-level="INFO" --use-vnodes --num-tokens=32 --junit-xml=nosetests.xml -s --cassandra-dir=$CASSANDRA_DIR --force-resource-intensive-tests 2>&1 | tee -a ${WORKSPACE}/test_stdout.txt
 else
     echo "Unknown dtest target: ${DTEST_TARGET}"
     exit 1
