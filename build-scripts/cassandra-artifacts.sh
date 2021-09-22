@@ -46,14 +46,37 @@ fi
 
 # Loop to prevent failure due to maven-ant-tasks not downloading a jar..
 set +e # disable immediate exit from this point
+
+BUILT_ARTIFACTS=0
+RUN_ECLIPSE_ARTIFACTS=0
+
 for x in $(seq 1 3); do
-    ant clean artifacts
-    RETURN="$?"
+    if [ "${BUILT_ARTIFACTS}" -eq "0" ]; then
+      ant clean artifacts
+      RETURN="$?"
+    fi
     if [ "${RETURN}" -eq "0" ]; then
-        # Run eclipse-warnings if build was successful
-        ant eclipse-warnings
-        RETURN="$?"
+        BUILT_ARTIFACTS=1
+        if [ "${RUN_ECLIPSE_ARTIFACTS}" -eq "0" ]; then
+          # Run eclipse-warnings if build was successful
+          ant eclipse-warnings
+          RETURN="$?"
+        fi
         if [ "${RETURN}" -eq "0" ]; then
+            RUN_ECLIPSE_ARTIFACTS=1
+            ant -Ddependency-check.home=/tmp/dependency-check dependency-check
+            RETURN="$?"
+            if [ ! "${RETURN}" -eq "0" ]; then
+                if [ -f /tmp/dependency-check/dependency-check-ant/dependency-check-ant.jar ]; then
+                    # Break the build here only in case dep zip was downloaded (hence JAR was extracted) just fine
+                    # but the check itself has failed. If JAR does not exist, it is probably
+                    # because the network was down so the ant target did not download the zip in the first place.
+                    echo "Failing the build on OWASP dependency check. Run 'ant dependency-check' locally and consult build/dependency-check-report.html to see the details."
+                    break
+                else
+                    continue
+                fi
+            fi
             set -e
             # build debian and rpm packages
             head_commit=`git log --pretty=oneline -1 | cut -d " " -f 1`
